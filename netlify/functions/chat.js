@@ -41,6 +41,7 @@ exports.handler = async function (event) {
         model: GROQ_MODEL,
         messages: oaMessages,
         max_tokens: body.max_tokens || 300,
+        reasoning_format: "hidden",
       }),
     });
 
