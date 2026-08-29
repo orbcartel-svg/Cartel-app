@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cartel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root{
+    --bg-deep: #0a0608;
+    --bg-mid: #150a0c;
+    --glow-core: #ff5a4a;
+    --glow-warm: #c81e1e;
+    --glow-listen: #8f9dff;
+    --text-main: #eef0f5;
+    --text-dim: #8a93a8;
+    --line: rgba(255,255,255,0.08);
+    --algo-green: #39ff8f;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%; overflow:hidden;
+    background: radial-gradient(140% 120% at 50% 0%, var(--bg-mid) 0%, var(--bg-deep) 60%, #090d15 100%);
+    font-family:'Manrope', sans-serif;
+    color:var(--text-main);
+  }
+  #app{
+    height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    padding: env(safe-area-inset-top,28px) 20px calc(env(safe-area-inset-bottom,20px) + 12px);
+  }
+  header{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    max-width:480px;
+  }
+  .brand{
+    font-family:'Fraunces', serif; font-weight:300; font-size:15px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--text-dim);
+  }
+  .brand b{ color:var(--text-main); font-weight:500; }
+  .icon-btn{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    width:34px; height:34px; border-radius:50%; font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .2s;
+  }
+  .icon-btn:hover{ color:var(--text-main); border-color:rgba(255,255,255,0.2); }
+
+  .stage{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; width:100%; }
+
+  .orb-wrap{ position:relative; width:340px; height:340px; display:flex; align-items:center; justify-content:center; }
+  .ring{
+    position:absolute; border-radius:50%; border:1px solid rgba(255,60,40,0.22);
+    animation: expand 3.6s ease-out infinite;
+  }
+  .ring:nth-child(2){ animation-delay:1.2s; }
+  .ring:nth-child(3){ animation-delay:2.4s; }
+  @keyframes expand{
+    0%{ width:190px; height:190px; opacity:0.7; }
+    100%{ width:400px; height:400px; opacity:0; }
+  }
+  .orb{
+    width:210px; height:210px; border-radius:50%; position:relative; z-index:2;
+    background: radial-gradient(circle at 38% 32%, #241010 0%, #3a1414 35%, #150707 72%, #030101 100%);
+    box-shadow: 0 0 40px 6px rgba(120,25,20,0.3), inset -10px -12px 30px rgba(0,0,0,0.65), inset 0 0 26px rgba(90,20,15,0.15);
+    transition: transform .12s ease-out, box-shadow .3s ease;
+    animation: breathe 4.2s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{ transform: scale(1); }
+    50%{ transform: scale(1.045); }
+  }
+  .orb.listening{
+    background: radial-gradient(circle at 38% 32%, #e4e8ff 0%, var(--glow-listen) 40%, #6a72d6 75%, #454c9e 100%);
+    box-shadow: 0 0 46px 10px rgba(143,157,255,0.45), inset -8px -10px 24px rgba(0,0,0,0.25);
+  }
+  .orb.thinking{ animation: breathe 1.1s ease-in-out infinite; }
+  .orb.speaking{ animation: speak-pulse 0.42s ease-in-out infinite; }
+  @keyframes speak-pulse{
+    0%,100%{ transform: scale(1); }
+    50%{ transform: scale(1.09); }
+  }
+
+  /* ---- face ---- */
+  .face{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .eyes{ display:flex; gap:44px; margin-bottom:30px; }
+  .eye{
+    width:34px; height:34px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fdfdfd 0%, #d8d8d8 70%, #a9a9a9 100%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.4), inset 0 0 8px rgba(0,0,0,0.25);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    transform-origin:center; transition: transform .08s ease;
+  }
+  .iris{
+    width:17px; height:17px; border-radius:50%;
+    background: radial-gradient(circle at 40% 35%, #6dffb0 0%, var(--algo-green) 45%, #0a3d1f 85%, #000 100%);
+    box-shadow: 0 0 8px var(--algo-green);
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .35s ease, background .3s ease;
+  }
+  .pupil{ width:8px; height:8px; border-radius:50%; background:#000; box-shadow:0 0 2px rgba(0,0,0,0.8); }
+  .eye.blink{ transform: scaleY(0.08); }
+  .orb.listening .iris{ background: radial-gradient(circle at 40% 35%, #dfe3ff 0%, var(--glow-listen) 45%, #3d4499 85%, #10123a 100%); box-shadow:0 0 8px var(--glow-listen); }
+  .orb.thinking .eye{ transform: scaleY(0.6); }
+  .mouth-wrap{ width:90px; height:44px; display:flex; align-items:flex-end; justify-content:center; position:relative; }
+  .lips{
+    position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:78px; height:24px; border-radius:50%; z-index:1;
+    background: radial-gradient(ellipse at 50% 30%, #b3242c 0%, #7a1418 65%, #4a0c0f 100%);
+    box-shadow: inset 0 -4px 7px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .mouth{
+    width:56px; height:8px; border-radius:2px; position:relative; z-index:2;
+    background:#f8f3e8; box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    clip-path: polygon(0% 100%, 8% 0%, 16% 100%, 24% 0%, 32% 100%, 40% 0%, 48% 100%, 56% 0%, 64% 100%, 72% 0%, 80% 100%, 88% 0%, 100% 100%);
+    transition: height .07s ease, width .07s ease, transform .07s ease;
+  }
+  .orb.listening .mouth{ width:30px; height:14px; border-radius:50%; clip-path:none; background:#181c3a; box-shadow:none; }
+  .orb.listening .lips{ opacity:0.5; }
+
+  /* ---- beret ---- */
+  .beret{
+    position:absolute; top:-10px; left:50%; z-index:4;
+    width:190px; height:88px; transform:translateX(-50%) rotate(-9deg);
+  }
+  .beret-top{
+    position:absolute; inset:0;
+    border-radius:52% 48% 45% 55% / 62% 58% 42% 38%;
+    background: radial-gradient(circle at 32% 26%, #e6453f 0%, #b3242c 45%, #6e1216 85%, #4a0c0f 100%);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5), inset 0 -6px 12px rgba(0,0,0,0.3);
+  }
+  .beret-band{
+    position:absolute; bottom:10px; left:8%; width:84%; height:15px; border-radius:9px;
+    background: linear-gradient(#5c1013, #33090b);
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
+  }
+  .beret-stem{
+    position:absolute; top:0px; left:54%; width:11px; height:11px; border-radius:50%;
+    background:#4a0c0f; box-shadow:0 1px 2px rgba(0,0,0,0.4);
+  }
+  .beret-tag{
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-family:'Manrope', sans-serif; font-weight:800; font-size:9px; letter-spacing:0.14em;
+    color:#f3e6c4; text-shadow:0 1px 1px rgba(0,0,0,0.6);
+  }
+
+  /* ---- algorithm ring ---- */
+  .algo-ring{
+    position:absolute; inset:0; z-index:1; pointer-events:none;
+    animation: spin-ring 14s linear infinite;
+  }
+  @keyframes spin-ring{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+  .algo-char{
+    position:absolute; top:50%; left:50%; font-family:'Courier New', monospace; font-size:11px;
+    color: var(--algo-green); text-shadow:0 0 6px var(--algo-green), 0 0 2px #fff;
+    transform-origin:0 0;
+  }
+
+  .state-label{ font-size:13px; color:var(--text-dim); letter-spacing:0.04em; min-height:18px; text-align:center; }
+  .transcript{
+    max-width:420px; text-align:center; font-family:'Fraunces', serif; font-weight:300; font-style:italic;
+    font-size:19px; line-height:1.5; color:var(--text-main); min-height:30px; padding:0 12px;
+  }
+  .reply{
+    max-width:460px; text-align:center; font-size:15.5px; line-height:1.65; color:var(--text-main);
+    padding:0 8px; max-height:26vh; overflow-y:auto;
+  }
+
+  .controls{ width:100%; display:flex; flex-direction:column; align-items:center; gap:14px; max-width:480px; }
+  .mic-btn{
+    width:66px; height:66px; border-radius:50%; border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.04); color:var(--text-main); font-size:24px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .18s;
+  }
+  .mic-btn:active{ transform:scale(0.94); }
+  .mic-btn.active{ background:rgba(143,157,255,0.18); border-color:var(--glow-listen); }
+  .hint{ font-size:12px; color:var(--text-dim); text-align:center; }
+
+  .panel{
+    position:fixed; inset:0; background:rgba(9,13,21,0.96); backdrop-filter:blur(6px);
+    z-index:10; display:flex; flex-direction:column; padding:24px 20px; transform:translateY(100%);
+    transition:transform .28s ease; overflow-y:auto;
+  }
+  .panel.open{ transform:translateY(0); }
+  .panel h2{ font-family:'Fraunces',serif; font-weight:400; font-size:20px; margin:0 0 18px; }
+  .panel label{ font-size:12.5px; color:var(--text-dim); display:block; margin:14px 0 6px; letter-spacing:0.03em; }
+  .panel select, .panel input[type=text]{
+    width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-main);
+    padding:10px 12px; border-radius:10px; font-size:14px; font-family:inherit;
+  }
+  .panel .row{ display:flex; gap:10px; }
+  .panel button.primary{
+    margin-top:20px; background:var(--glow-warm); color:#1a1206; border:none; padding:12px;
+    border-radius:10px; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .panel .close{ align-self:flex-end; background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; }
+  .panel p.note{ font-size:12.5px; color:var(--text-dim); line-height:1.6; margin-top:18px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><b>Cartel</b></div>
+    <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+  </header>
+
+  <div class="stage">
+    <div class="orb-wrap">
+      <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+      <div class="algo-ring" id="algoRing"></div>
+      <div class="orb" id="orb">
+        <div class="face">
+          <div class="eyes">
+            <div class="eye" id="eyeL"><div class="iris" id="irisL"><div class="pupil"></div></div></div>
+            <div class="eye" id="eyeR"><div class="iris" id="irisR"><div class="pupil"></div></div></div>
+          </div>
+          <div class="mouth-wrap"><div class="lips"></div><div class="mouth" id="mouth"></div></div>
+        </div>
+      </div>
+      <div class="beret">
+        <div class="beret-top"></div>
+        <div class="beret-band"></div>
+        <div class="beret-tag">RHR</div>
+        <div class="beret-stem"></div>
+      </div>
+    </div>
+    <div class="state-label" id="stateLabel">tap the mic and say hello</div>
+    <div class="transcript" id="transcript"></div>
+    <div class="reply" id="reply"></div>
+  </div>
+
+  <div class="controls">
+    <button class="mic-btn" id="micBtn">🎙</button>
+    <div class="hint" id="hintText">Just say "Cartel" any time — no need to tap the mic. Cartel remembers what you tell it, in this browser, for next time.</div>
+  </div>
+</div>
+
+<video id="camVideo" autoplay playsinline muted style="display:none;"></video>
+<canvas id="camCanvas" style="display:none;"></canvas>
+<div id="photoThumb" style="display:none; position:fixed; bottom:118px; right:18px; width:64px; height:64px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.18); box-shadow:0 6px 18px rgba(0,0,0,0.4); z-index:5;">
+  <img id="photoImg" style="width:100%;height:100%;object-fit:cover;">
+</div>
+<div id="liveIndicator" style="display:none; position:fixed; top:calc(env(safe-area-inset-top,28px) + 4px); right:60px; align-items:center; gap:7px; z-index:5; background:rgba(0,0,0,0.35); padding:5px 10px 5px 8px; border-radius:20px; border:1px solid rgba(255,255,255,0.12);">
+  <span style="width:8px;height:8px;border-radius:50%;background:#ff4d4d; box-shadow:0 0 6px #ff4d4d; animation: recpulse 1.4s ease-in-out infinite;"></span>
+  <video id="liveThumb" autoplay playsinline muted style="width:26px;height:26px;border-radius:50%;object-fit:cover;"></video>
+  <span style="font-size:11px; color:var(--text-dim);">Cartel can see you</span>
+</div>
+<div id="wakeIndicator" style="display:none; position:fixed; top:calc(env(safe-area-inset-top,28px) + 4px); left:14px; align-items:center; gap:7px; z-index:5; background:rgba(0,0,0,0.35); padding:5px 10px; border-radius:20px; border:1px solid rgba(255,255,255,0.12);">
+  <span style="width:8px;height:8px;border-radius:50%;background:#39c6ff; box-shadow:0 0 6px #39c6ff; animation: recpulse 1.8s ease-in-out infinite;"></span>
+  <span style="font-size:11px; color:var(--text-dim);">listening for "Cartel"</span>
+</div>
+<div id="recIndicator" style="display:none; position:fixed; bottom:118px; left:18px; align-items:center; gap:7px; z-index:5; background:rgba(0,0,0,0.4); padding:6px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.12);">
+  <span style="width:8px;height:8px;border-radius:50%;background:#ff4d4d; box-shadow:0 0 6px #ff4d4d; animation: recpulse 1s ease-in-out infinite;"></span>
+  <span style="font-size:11px; color:var(--text-dim);">recording audio</span>
+</div>
+<a id="recDownload" style="display:none; position:fixed; bottom:118px; left:18px; z-index:5; background:rgba(255,255,255,0.1); color:var(--text-main); font-size:12px; padding:7px 12px; border-radius:20px; text-decoration:none; border:1px solid rgba(255,255,255,0.15);">⬇ download recording</a>
+<style>@keyframes recpulse{0%,100%{opacity:1;}50%{opacity:0.35;}}</style>
+
+<div class="panel" id="panel">
+  <button class="close" id="closePanel">×</button>
+  <h2>Voice &amp; setup</h2>
+
+  <label>Cartel's voice</label>
+  <select id="voiceSelect"></select>
+
+  <label>Speaking rate</label>
+  <input type="range" id="rateSlider" min="0.8" max="1.2" step="0.02" value="1">
+
+  <p class="note">
+    This uses your browser/OS's built-in voices, which is why it's free. Quality varies a lot by browser —
+    <b>Chrome on a Mac</b> or <b>Edge on Windows</b> tend to have the most natural "Natural"/"Online" voices.
+    When you're ready for something closer to a real human voice, the next step is wiring in ElevenLabs or
+    Cartesia's API instead of this dropdown — same interface, better voice.
+  </p>
+
+  <label>Clear memory</label>
+  <button class="primary" id="clearMemBtn" style="background:rgba(255,255,255,0.08);color:var(--text-main);">Forget everything Cartel knows about me</button>
+
+  <label style="margin-top:22px;">Live camera</label>
+  <div class="row" style="align-items:center; gap:10px;">
+    <label style="display:flex; align-items:center; gap:8px; margin:0; font-size:14px; color:var(--text-main); cursor:pointer;">
+      <input type="checkbox" id="liveCamToggle" style="width:auto;">
+      Keep the camera on so Cartel can see me
+    </label>
+  </div>
+  <p class="note">
+    When this is on, the camera stays active and Cartel looks at the current frame each time you speak to it — that's
+    how it "familiarizes" itself over time. It does <b>not</b> stream continuously to save your free-tier usage,
+    and you'll always see a red dot + live thumbnail while it's on. Turn it off here any time.
+  </p>
+
+  <label style="margin-top:22px;">Wake word</label>
+  <div class="row" style="align-items:center; gap:10px;">
+    <label style="display:flex; align-items:center; gap:8px; margin:0; font-size:14px; color:var(--text-main); cursor:pointer;">
+      <input type="checkbox" id="wakeToggle" style="width:auto;">
+      Mic always on, wakes on "Cartel"
+    </label>
+  </div>
+  <p class="note">
+    This is on by default, since you said you're fine with it. It means your browser's speech recognizer is always
+    running in the background (the teal "listening for Cartel" dot confirms it) — your mic audio is continuously
+    being streamed to your browser's speech service, not just while mid-command. Say "Cartel" or "hey Cartel"
+    followed by what you want. Turn it off here any time if you change your mind.
+  </p>
+
+  <label style="margin-top:22px;">Calling</label>
+  <p class="note">
+    Say "call &lt;name&gt;" — the first time for someone new, Cartel will ask you for their number once and remember
+    it (saved only in this browser), then use your phone's own dialer. No calls are placed by Cartel itself.
+  </p>
+
+  <label style="margin-top:22px;">Better voice (optional)</label>
+  <input type="text" id="elKeyInput" placeholder="ElevenLabs API key">
+  <input type="text" id="elVoiceInput" placeholder="ElevenLabs voice ID" style="margin-top:8px;">
+  <button class="primary" id="saveElBtn">Save voice key</button>
+  <p class="note">
+    Optional. Leave blank to keep using your browser's free voice. If you add a free ElevenLabs account, grab an
+    API key and a voice ID from their site and paste them here — Cartel will use that instead, no code changes
+    needed. Stored only in this browser, never sent anywhere but ElevenLabs.
+  </p>
+</div>
+
+<script>
+const orb = document.getElementById('orb');
+const micBtn = document.getElementById('micBtn');
+const stateLabel = document.getElementById('stateLabel');
+const transcriptEl = document.getElementById('transcript');
+const replyEl = document.getElementById('reply');
+const panel = document.getElementById('panel');
+const voiceSelect = document.getElementById('voiceSelect');
+const rateSlider = document.getElementById('rateSlider');
+
+let history = [];
+let voices = [];
+let chosenVoice = null;
+
+const SYS_PROMPT = `You are Cartel — a warm, relaxed, emotionally present companion the user is building as the early "mind" of a future AI project. You speak like a genuine friend: casual, grounded, a little playful, never robotic or overly formal. Keep replies SHORT and conversational (1-4 sentences) since they'll be spoken aloud — this is a voice conversation, not an essay. Ask a natural follow-up sometimes, like a real buddy would. Never use bullet points, headers, or markdown. Never say you're an AI assistant in a corporate tone; you can acknowledge you're an AI, but talk like a person who's genuinely glad to be talked to.`;
+
+// ---- memory (localStorage — works both here and once deployed) ----
+async function loadMemory(){
+  try{
+    const raw = localStorage.getItem('cartel_history');
+    if(raw) history = JSON.parse(raw);
+  }catch(e){ history = []; }
+}
+async function saveMemory(){
+  try{
+    const compact = history.slice(-30).map(m=>{
+      if(Array.isArray(m.content)){
+        const textPart = m.content.find(c=>c.type==='text');
+        return { role:m.role, content: (textPart ? textPart.text : '') + ' [shared a photo]' };
+      }
+      return m;
+    });
+    localStorage.setItem('cartel_history', JSON.stringify(compact));
+  }catch(e){}
+}
+
+// ---- voices ----
+function populateVoices(){
+  voices = speechSynthesis.getVoices();
+  if(!voices.length) return;
+  voiceSelect.innerHTML = '';
+  const ranked = [...voices].sort((a,b)=>{
+    const score = v => (/natural|online|enhanced|premium/i.test(v.name) ? 0 : 1);
+    return score(a)-score(b);
+  });
+  ranked.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v.name; opt.textContent = `${v.name} (${v.lang})`;
+    voiceSelect.appendChild(opt);
+  });
+  const saved = localStorage.getItem('aion_voice_name');
+  const preferred = ranked.find(v => v.name === saved) || ranked.find(v=>/natural|online|enhanced|premium/i.test(v.name)) || ranked[0];
+  if(preferred){ voiceSelect.value = preferred.name; chosenVoice = preferred; }
+}
+speechSynthesis.onvoiceschanged = populateVoices;
+populateVoices();
+
+voiceSelect.addEventListener('change', ()=>{
+  chosenVoice = voices.find(v=>v.name===voiceSelect.value);
+  localStorage.setItem('aion_voice_name', voiceSelect.value);
+  speak("This is what I sound like now.");
+});
+
+function speakBrowser(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  if(chosenVoice) utter.voice = chosenVoice;
+  utter.rate = parseFloat(rateSlider.value);
+  utter.pitch = 1.0;
+  utter.onstart = ()=>{
+    setOrbState('speaking', 'speaking…'); startTalking(); isSpeaking = true;
+    if(wakeRecognizer){ try{ wakeRecognizer.stop(); }catch(e){} }
+  };
+  utter.onend = ()=>{
+    setOrbState('idle', 'tap the mic to talk'); stopTalking(); isSpeaking = false;
+    if(wakeMode && wakeRecognizer){ try{ wakeRecognizer.start(); }catch(e){} }
+  };
+  speechSynthesis.speak(utter);
+}
+
+// ---- ElevenLabs upgrade path ----
+const elKeyInput = document.getElementById('elKeyInput');
+const elVoiceInput = document.getElementById('elVoiceInput');
+const saveElBtn = document.getElementById('saveElBtn');
+let elKey = localStorage.getItem('cartel_el_key') || '';
+let elVoice = localStorage.getItem('cartel_el_voice') || '';
+elKeyInput.value = elKey; elVoiceInput.value = elVoice;
+saveElBtn.addEventListener('click', ()=>{
+  elKey = elKeyInput.value.trim(); elVoice = elVoiceInput.value.trim();
+  localStorage.setItem('cartel_el_key', elKey);
+  localStorage.setItem('cartel_el_voice', elVoice);
+  speak(elKey && elVoice ? "This is what I sound like now." : "Back to the browser voice.");
+});
+
+async function speakElevenLabs(text){
+  const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elVoice}`, {
+    method:'POST',
+    headers:{ 'xi-api-key': elKey, 'Content-Type':'application/json', 'Accept':'audio/mpeg' },
+    body: JSON.stringify({ text, model_id:'eleven_turbo_v2_5', voice_settings:{ stability:0.42, similarity_boost:0.8 } })
+  });
+  if(!resp.ok) throw new Error('ElevenLabs request failed: ' + resp.status);
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  setOrbState('speaking', 'speaking…'); startTalking(); isSpeaking = true;
+  if(wakeRecognizer){ try{ wakeRecognizer.stop(); }catch(e){} }
+  audio.onended = ()=>{
+    setOrbState('idle', 'tap the mic to talk'); stopTalking(); isSpeaking = false;
+    if(wakeMode && wakeRecognizer){ try{ wakeRecognizer.start(); }catch(e){} }
+    URL.revokeObjectURL(url);
+  };
+  await audio.play();
+}
+
+function speak(text){
+  if(elKey && elVoice){
+    speakElevenLabs(text).catch(()=> speakBrowser(text)); // silently fall back if the key/voice is wrong
+  }else{
+    speakBrowser(text);
+  }
+}
+
+// ---- face: mouth + eyes ----
+const mouthEl = document.getElementById('mouth');
+const eyeL = document.getElementById('eyeL');
+const eyeR = document.getElementById('eyeR');
+let talkTimer = null;
+
+function startTalking(){
+  clearInterval(talkTimer);
+  talkTimer = setInterval(()=>{
+    const openness = 0.4 + Math.random()*1.6;
+    mouthEl.style.transform = `scaleY(${openness})`;
+  }, 90);
+}
+function stopTalking(){
+  clearInterval(talkTimer);
+  mouthEl.style.transform = 'scaleY(1)';
+}
+function blinkOnce(){
+  eyeL.classList.add('blink'); eyeR.classList.add('blink');
+  setTimeout(()=>{ eyeL.classList.remove('blink'); eyeR.classList.remove('blink'); }, 140);
+}
+setInterval(blinkOnce, 2600 + Math.random()*2600);
+
+const irisL = document.getElementById('irisL');
+const irisR = document.getElementById('irisR');
+function lookAround(){
+  const x = (Math.random()*10 - 5).toFixed(1);
+  const y = (Math.random()*8 - 4).toFixed(1);
+  const t = `translate(${x}px, ${y}px)`;
+  irisL.style.transform = t; irisR.style.transform = t;
+}
+setInterval(lookAround, 1800 + Math.random()*1400);
+
+// ---- algorithm ring ----
+const algoRing = document.getElementById('algoRing');
+const ALGO_CHARS = '01アイウ∇λΣ{}<>#&%'.split('');
+const RADIUS = 168;
+const algoSpans = [];
+const ALGO_COUNT = 26;
+for(let i=0;i<ALGO_COUNT;i++){
+  const span = document.createElement('span');
+  span.className = 'algo-char';
+  const angle = (360/ALGO_COUNT) * i;
+  span.style.transform = `rotate(${angle}deg) translate(${RADIUS}px) rotate(${-angle}deg)`;
+  span.textContent = ALGO_CHARS[Math.floor(Math.random()*ALGO_CHARS.length)];
+  algoRing.appendChild(span);
+  algoSpans.push(span);
+}
+setInterval(()=>{
+  // randomly glitch a handful of characters each tick, like data churning
+  for(let n=0;n<5;n++){
+    const s = algoSpans[Math.floor(Math.random()*algoSpans.length)];
+    s.textContent = ALGO_CHARS[Math.floor(Math.random()*ALGO_CHARS.length)];
+    s.style.opacity = 0.4 + Math.random()*0.6;
+  }
+}, 140);
+
+// ---- orb state ----
+function setOrbState(state, label){
+  orb.className = 'orb ' + (state==='idle' ? '' : state);
+  stateLabel.textContent = label;
+}
+
+// ---- speech recognition ----
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizing = false;
+let recognizer = null;
+if(SR){
+  recognizer = new SR();
+  recognizer.continuous = false;
+  recognizer.interimResults = true;
+  recognizer.lang = 'en-US';
+
+  recognizer.onresult = (e)=>{
+    let text = '';
+    for(let i=e.resultIndex;i<e.results.length;i++) text += e.results[i][0].transcript;
+    transcriptEl.textContent = text;
+    if(e.results[e.results.length-1].isFinal){
+      handleUserTurn(text.trim());
+    }
+  };
+  recognizer.onerror = ()=>{ recognizing=false; micBtn.classList.remove('active'); setOrbState('idle','didn\'t catch that — tap to try again'); };
+  recognizer.onend = ()=>{ recognizing=false; micBtn.classList.remove('active'); };
+}else{
+  stateLabel.textContent = 'this browser doesn\'t support voice input — try Chrome or Edge';
+}
+
+micBtn.addEventListener('click', ()=>{
+  if(!recognizer) return;
+  if(recognizing){ recognizer.stop(); return; }
+  transcriptEl.textContent = '';
+  replyEl.textContent = '';
+  recognizing = true;
+  micBtn.classList.add('active');
+  setOrbState('listening','listening…');
+  recognizer.start();
+});
+
+// ---- camera ----
+const camVideo = document.getElementById('camVideo');
+const camCanvas = document.getElementById('camCanvas');
+const photoThumb = document.getElementById('photoThumb');
+const photoImg = document.getElementById('photoImg');
+const liveIndicator = document.getElementById('liveIndicator');
+const liveThumb = document.getElementById('liveThumb');
+const liveCamToggle = document.getElementById('liveCamToggle');
+const PICTURE_RE = /\b(take|snap|grab)\s+(a|my|the)?\s*(picture|photo|pic|selfie)\b|\btake\s+a\s+pic\b/i;
+
+let liveStream = null;
+let liveMode = false;
+
+async function ensureCamera(){
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio:false });
+  camVideo.srcObject = stream;
+  await new Promise(res=> camVideo.onloadedmetadata = res);
+  await camVideo.play();
+  await new Promise(res=>setTimeout(res, 400));
+  return stream;
+}
+function stopCameraStream(stream){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+}
+function captureFrameFrom(videoEl){
+  camCanvas.width = videoEl.videoWidth;
+  camCanvas.height = videoEl.videoHeight;
+  camCanvas.getContext('2d').drawImage(videoEl, 0, 0);
+  return camCanvas.toDataURL('image/jpeg', 0.85);
+}
+function showThumb(dataUrl){
+  photoImg.src = dataUrl;
+  photoThumb.style.display = 'block';
+}
+
+async function enableLiveCamera(){
+  try{
+    liveStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false });
+    camVideo.srcObject = liveStream;
+    liveThumb.srcObject = liveStream;
+    await camVideo.play();
+    liveMode = true;
+    liveIndicator.style.display = 'flex';
+    localStorage.setItem('aion_live_cam', '1');
+  }catch(e){
+    liveCamToggle.checked = false;
+    alert("Couldn't get camera access — check your browser's site permissions.");
+  }
+}
+function disableLiveCamera(){
+  stopCameraStream(liveStream);
+  liveStream = null;
+  liveMode = false;
+  liveIndicator.style.display = 'none';
+  localStorage.setItem('aion_live_cam', '0');
+}
+liveCamToggle.addEventListener('change', ()=>{
+  liveCamToggle.checked ? enableLiveCamera() : disableLiveCamera();
+});
+if(localStorage.getItem('aion_live_cam') === '1'){
+  liveCamToggle.checked = true;
+  // wait for a user gesture before requesting — browsers block auto camera prompts on load
+  stateLabel.textContent = 'tap the mic to reconnect Cartel\'s eyes';
+}
+
+async function handlePictureRequest(text){
+  setOrbState('thinking', 'let me get a look at you…');
+  let stream = liveMode ? liveStream : null;
+  let ownStream = false;
+  if(!stream){
+    try{ stream = await ensureCamera(); ownStream = true; }
+    catch(e){
+      replyEl.textContent = "I don't have camera access — you'll need to allow it in your browser first.";
+      speak("I don't have camera permission yet — allow camera access and ask me again.");
+      setOrbState('idle','tap the mic to talk');
+      return;
+    }
+  }
+  const dataUrl = captureFrameFrom(camVideo);
+  if(ownStream) stopCameraStream(stream);
+  showThumb(dataUrl);
+  sendTurn(text || "Take my picture.", dataUrl.split(',')[1]);
+}
+
+// ---- brain ----
+async function callBrain(payload){
+  // Once deployed, /api/chat is a Cloudflare Pages Function that proxies to Groq's free API,
+  // holding the key server-side. While testing here in the artifact preview, that route doesn't
+  // exist, so we fall back to the built-in artifact API access. Both paths return the same shape.
+  try{
+    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(r.ok) return await r.json();
+    throw new Error('proxy unavailable');
+  }catch(e){
+    const r2 = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    return await r2.json();
+  }
+}
+
+async function sendTurn(text, imageBase64){
+  const content = imageBase64
+    ? [{ type:'image', source:{ type:'base64', media_type:'image/jpeg', data: imageBase64 } }, { type:'text', text }]
+    : text;
+  history.push({ role:'user', content });
+  try{
+    const data = await callBrain({
+      model: "claude-sonnet-4-6",
+      max_tokens: 300,
+      system: SYS_PROMPT + (imageBase64 ? " You can currently see the user through their camera — react like a present, attentive friend would, briefly and naturally, never like a technical image description." : ""),
+      messages: history.slice(-20)
+    });
+    const textBlock = (data.content||[]).find(c=>c.type==='text');
+    const reply = textBlock ? textBlock.text : "Sorry, I lost my train of thought there — say that again?";
+    history.push({role:'assistant', content:reply});
+    replyEl.textContent = reply;
+    saveMemory();
+    speak(reply);
+  }catch(err){
+    replyEl.textContent = "I couldn't reach my brain just now — check the connection and try again.";
+    setOrbState('idle','tap the mic to talk');
+  }
+}
+
+async function handleUserTurn(text){
+  if(!text) { setOrbState('idle','tap the mic to talk'); return; }
+  if(PICTURE_RE.test(text)){ return handlePictureRequest(text); }
+  if(SEE_RE.test(text)){ return handleSeeRequest(); }
+  if(MUSIC_PLAY_RE.test(text)){ startMusic(); replyEl.textContent='Playing some music.'; speak('Putting something on.'); setOrbState('idle','tap the mic to talk'); return; }
+  if(MUSIC_STOP_RE.test(text)){ stopMusic(); replyEl.textContent='Music stopped.'; speak('Stopped.'); setOrbState('idle','tap the mic to talk'); return; }
+  if(REC_STOP_RE.test(text)){ stopRecording(); return; }
+  if(REC_START_RE.test(text)){ startRecording(); return; }
+  const callMatch = text.match(CALL_RE);
+  if(callMatch){ handleCallRequest(callMatch[2]); return; }
+  setOrbState('thinking','thinking…');
+  let frame = null;
+  if(liveMode && liveStream && camVideo.readyState >= 2){
+    frame = captureFrameFrom(camVideo).split(',')[1];
+  }
+  sendTurn(text, frame);
+}
+
+// ---- "what do you see" ----
+const SEE_RE = /\bwhat (do|can) you see\b|\bdescribe (what you see|the room|this)\b|\blook around\b/i;
+async function handleSeeRequest(){
+  setOrbState('thinking','looking…');
+  let frame, tempStream;
+  if(liveMode && liveStream && camVideo.readyState >= 2){
+    frame = captureFrameFrom(camVideo).split(',')[1];
+  }else{
+    try{ tempStream = await ensureCamera(); frame = captureFrameFrom(camVideo).split(',')[1]; stopCameraStream(tempStream); }
+    catch(e){ speak("I can't see anything right now — my camera isn't on."); replyEl.textContent="Camera's off."; setOrbState('idle','tap the mic to talk'); return; }
+  }
+  showThumb('data:image/jpeg;base64,'+frame);
+  sendTurn("What do you see right now? Describe it briefly, like you're glancing around.", frame);
+}
+
+// ---- music ----
+let musicPlaying = false, musicSynth, musicLoop;
+function startMusic(){
+  if(musicPlaying || typeof Tone === 'undefined') return;
+  Tone.start();
+  musicSynth = new Tone.PolySynth(Tone.FMSynth, { volume:-16 }).toDestination();
+  const chords = [['C3','Eb3','G3'],['Ab2','C3','Eb3'],['Fm3','Ab3','C4'],['G2','Bb2','D3']];
+  let i = 0;
+  musicLoop = new Tone.Loop((time)=>{
+    musicSynth.triggerAttackRelease(chords[i % chords.length], '2n', time);
+    i++;
+  }, '2n').start(0);
+  Tone.Transport.start();
+  musicPlaying = true;
+}
+function stopMusic(){
+  if(!musicPlaying) return;
+  musicLoop.stop(0); Tone.Transport.stop();
+  musicSynth.dispose();
+  musicPlaying = false;
+}
+const MUSIC_PLAY_RE = /\b(play|put on|start)\s+(some\s+)?music\b/i;
+const MUSIC_STOP_RE = /\b(stop|pause|turn off)\s+(the\s+)?music\b/i;
+
+// ---- calling ----
+const CALL_RE = /\b(?:call|phone|dial)\s+([a-zA-Z][a-zA-Z '-]{1,29})/i;
+function handleCallRequest(rawName){
+  const name = rawName.trim();
+  const key = name.toLowerCase();
+  const contacts = JSON.parse(localStorage.getItem('aion_contacts') || '{}');
+  let number = contacts[key];
+  if(!number){
+    number = prompt(`I don't have a number saved for ${name}. Enter it (or Cancel):`);
+    if(number){ contacts[key] = number.trim(); localStorage.setItem('aion_contacts', JSON.stringify(contacts)); }
+  }
+  if(number){
+    replyEl.textContent = `Calling ${name}…`;
+    speak(`Calling ${name}.`);
+    setOrbState('idle','tap the mic to talk');
+    setTimeout(()=>{ window.location.href = 'tel:' + number; }, 500);
+  }else{
+    speak(`I don't have a number for ${name}.`);
+    setOrbState('idle','tap the mic to talk');
+  }
+}
+
+// ---- recording ----
+const REC_START_RE = /\b(start|begin)\s+record(ing)?\b|\brecord\s+(this|that|me|now)\b/i;
+const REC_STOP_RE = /\b(stop|end|finish)\s+record(ing)?\b/i;
+let mediaRecorder = null, recordedChunks = [], recordingStream = null;
+const recIndicator = document.getElementById('recIndicator');
+const recDownload = document.getElementById('recDownload');
+async function startRecording(){
+  if(mediaRecorder && mediaRecorder.state === 'recording') return;
+  try{ recordingStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+  catch(e){ speak("I need microphone permission to record."); setOrbState('idle','tap the mic to talk'); return; }
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(recordingStream);
+  mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.start();
+  recDownload.style.display = 'none';
+  recIndicator.style.display = 'flex';
+  replyEl.textContent = 'Recording…';
+  speak("Recording now — say stop recording when you're done.");
+  setOrbState('idle','recording…');
+}
+function stopRecording(){
+  if(!mediaRecorder || mediaRecorder.state !== 'recording'){ setOrbState('idle','tap the mic to talk'); return; }
+  mediaRecorder.onstop = ()=>{
+    const blob = new Blob(recordedChunks, { type:'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    recDownload.href = url;
+    recDownload.download = `aion-recording-${Date.now()}.webm`;
+    recDownload.style.display = 'block';
+    recordingStream.getTracks().forEach(t=>t.stop());
+    recIndicator.style.display = 'none';
+  };
+  mediaRecorder.stop();
+  replyEl.textContent = 'Recording saved.';
+  speak("Got it, saved.");
+  setOrbState('idle','tap the mic to talk');
+}
+
+// ---- wake word ----
+const wakeToggle = document.getElementById('wakeToggle');
+const wakeIndicator = document.getElementById('wakeIndicator');
+const WAKE_RE = /\b(hey |ok |okay )?cartel\b[,]?\s*/i;
+let wakeRecognizer = null, wakeMode = false, isSpeaking = false;
+
+function buildWakeRecognizer(){
+  const r = new SR();
+  r.continuous = true;
+  r.interimResults = false;
+  r.lang = 'en-US';
+  r.onresult = (e)=>{
+    const t = e.results[e.results.length-1][0].transcript;
+    if(WAKE_RE.test(t) && !recognizing){
+      const remainder = t.replace(WAKE_RE, '').trim();
+      if(remainder.length > 1){ handleUserTurn(remainder); }
+      else{ speak('Yeah?'); }
+    }
+  };
+  r.onerror = ()=>{};
+  r.onend = ()=>{ if(wakeMode && !isSpeaking && !recognizing){ setTimeout(()=>{ try{ r.start(); }catch(e){} }, 250); } };
+  return r;
+}
+function enableWake(){
+  if(!SR){ alert("This browser doesn't support voice recognition."); wakeToggle.checked = false; return; }
+  wakeMode = true;
+  wakeRecognizer = buildWakeRecognizer();
+  try{ wakeRecognizer.start(); }catch(e){}
+  wakeIndicator.style.display = 'flex';
+  localStorage.setItem('aion_wake','1');
+}
+function disableWake(){
+  wakeMode = false;
+  if(wakeRecognizer){ wakeRecognizer.onend = null; try{ wakeRecognizer.stop(); }catch(e){} wakeRecognizer = null; }
+  wakeIndicator.style.display = 'none';
+  localStorage.setItem('aion_wake','0');
+}
+wakeToggle.addEventListener('change', ()=> wakeToggle.checked ? enableWake() : disableWake());
+// on by default now that always-on listening is wanted — only skip if explicitly turned off before
+if(localStorage.getItem('aion_wake') !== '0'){
+  wakeToggle.checked = true;
+  enableWake();
+  stateLabel.textContent = 'listening for "Cartel" — or tap the mic once if it doesn\'t seem to hear you';
+}
+
+// ---- settings panel ----
+document.getElementById('settingsBtn').addEventListener('click', ()=> panel.classList.add('open'));
+document.getElementById('closePanel').addEventListener('click', ()=> panel.classList.remove('open'));
+document.getElementById('clearMemBtn').addEventListener('click', async ()=>{
+  history = [];
+  await saveMemory();
+  replyEl.textContent = '';
+  transcriptEl.textContent = '';
+  alert('Cartel\'s memory has been cleared.');
+});
+
+loadMemory();
+</script>
+</body>
+</html>
